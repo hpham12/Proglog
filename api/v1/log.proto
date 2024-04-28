@@ -1,0 +1,8 @@
+syntax = "proto3";
+package log.v1;
+option go_package = "Proglog/api/v1/log_v1";
+
+message Record {
+	bytes value = 1;
+	uint64 offset = 2;
+}                               
