@@ -39,7 +39,7 @@ func newStore(file *os.File) (*store, error) {
 	}, nil
 }
 
-func (store *store) Append(data []byte) (uint64, uint64, error) {
+func (store *store) Append(data []byte) (n uint64, pos uint64, err error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	position := store.size
