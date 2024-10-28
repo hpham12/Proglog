@@ -20,6 +20,8 @@ func TestSegment(t *testing.T) {
 	c.Segment.MaxStoreBytes = 2048
 
 	segment, err := newSegment(os.TempDir(), 0, c)
+	defer segment.Remove()
+
 	require.NoError(t, err)
 
 	// test append
@@ -28,8 +30,6 @@ func TestSegment(t *testing.T) {
 	// test read
 	testSegmentRead(t, segment)
 
-
-	segment.Remove()
 }
 
 func testSegmentAppend(t *testing.T, s *segment) {
@@ -46,4 +46,8 @@ func testSegmentRead(t *testing.T, s *segment) {
 	record, err := s.Read(0)
 	require.NoError(t, err)
 	require.EqualValues(t, record_val_1, record.Value)
+
+	record, err = s.Read(1)
+	require.NoError(t, err)
+	require.EqualValues(t, record_val_2, record.Value)
 }
