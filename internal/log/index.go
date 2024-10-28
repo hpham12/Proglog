@@ -2,8 +2,10 @@ package log
 
 // An index entry contains 2 fields: The record's offset and its position in the store file
 import (
+	"fmt"
 	"io"
 	"os"
+
 	"github.com/tysonmote/gommap"
 )
 
@@ -57,31 +59,32 @@ func (i *index) Close() error {
 
 // Takes in an offset and returns and associated record's position in the store
 // The given offset is relative to the segment's base offset
-func (i *index) Read(in int64) (out uint32, pos uint64, err error) {
+func (i *index) Read(in int64) (off uint32, pos uint64, err error) {
 	if i.size == 0 {
 		return 0, 0, io.EOF
 	}
 	if in == -1 {
-		out = uint32((i.size / entWidth) - 1)
+		off = uint32((i.size / entWidth) - 1)
 	} else {
-		out = uint32(in)
+		off = uint32(in)
 	}
-	pos = uint64(out) * entWidth
+	pos = uint64(off) * entWidth
 	if i.size < pos + entWidth {
 		return 0, 0, io.EOF
 	}
-	out = encodingStyle.Uint32(i.mmap[pos : pos + offWidth])
+	off = encodingStyle.Uint32(i.mmap[pos : pos + offWidth])
 	pos = encodingStyle.Uint64(i.mmap[pos + offWidth : pos + entWidth])
-	return out, pos, nil
+	return off, pos, nil
 }
 
 // Method to append the given offset and position to the index
 func (i *index) Write(off uint32, pos uint64) error {
+	fmt.Printf("current index size %d", i.size)
 	if uint64(len(i.mmap)) < i.size + entWidth {
 		return io.EOF;
 	}
-	encodingStyle.PutUint32(i.mmap[i.size:i.size + offWidth], off)
-	encodingStyle.PutUint64(i.mmap[i.size + offWidth:i.size + entWidth], pos)
+	encodingStyle.PutUint32(i.mmap[i.size : i.size+offWidth], off)
+	encodingStyle.PutUint64(i.mmap[i.size+offWidth : i.size+entWidth], pos)
 	i.size += uint64(entWidth)
 	return nil;
 }
