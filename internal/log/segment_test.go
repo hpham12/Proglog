@@ -1,7 +1,7 @@
 package log
 
 import (
-	// "io"
+	"io"
 	"os"
 	"testing"
 	"github.com/stretchr/testify/require"
@@ -16,20 +16,18 @@ var (
 func TestSegment(t *testing.T) {
 	c := Config{}
 
-	c.Segment.MaxIndexBytes = 1024
-	c.Segment.MaxStoreBytes = 2048
+	c.Segment.MaxIndexBytes = entWidth * 2
+	c.Segment.MaxStoreBytes = 1024
 
 	segment, err := newSegment(os.TempDir(), 0, c)
 	defer segment.Remove()
 
 	require.NoError(t, err)
 
-	// test append
 	testSegmentAppend(t, segment)
-
-	// test read
 	testSegmentRead(t, segment)
-
+	testSegmentClose(t, segment)
+	testSegmentRemove(t, segment)
 }
 
 func testSegmentAppend(t *testing.T, s *segment) {
@@ -40,6 +38,11 @@ func testSegmentAppend(t *testing.T, s *segment) {
 	offset, err = s.Append(&api.Record{Value: record_val_2})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, offset)
+
+	require.Equal(t, s.IsMaxed(), true)
+
+	_, err = s.Append(&api.Record{Value: record_val_2})
+	require.Equal(t, io.EOF, err)
 }
 
 func testSegmentRead(t *testing.T, s *segment) {
@@ -50,4 +53,17 @@ func testSegmentRead(t *testing.T, s *segment) {
 	record, err = s.Read(1)
 	require.NoError(t, err)
 	require.EqualValues(t, record_val_2, record.Value)
+
+	_, err = s.Read(2)
+	require.Equal(t, io.EOF, err)
+}
+
+func testSegmentRemove(t *testing.T, s *segment) {
+	err := s.Close()
+	require.NoError(t, err)
+}
+
+func testSegmentClose(t *testing.T, s *segment) {
+	err := s.Close()
+	require.NoError(t, err)
 }
