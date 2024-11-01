@@ -1,6 +1,7 @@
 package log
 
 import (
+	api "Proglog/api/v1"
 	"fmt"
 	"io"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	api "Proglog/api/v1"
 )
 
 // The log consists of a list of segments and a pointer to the active segment
@@ -148,4 +148,83 @@ func (l *Log) Reset() error {
 		return err
 	}
 	return l.setup()
+}
+
+// These methods tell us the offset range stored in the log
+// When working on supporting replicated, coordinated cluster, we will need 
+// this information to know what nodes have the oldest and newest data and what
+// nodes are falling behind and need to replicate
+
+func (l *Log) lowestOffset() (uint64, error) {
+	l.mu.RLock()
+	defer l.mu.RLock()
+	return l.segments[0].baseOffset, nil
+}
+
+func (l *Log) HighestOffset() (uint64, error) {
+	l.mu.RLock()
+	defer l.mu.RLock()
+	off := l.segments[len(l.segments) - 1].nextOffset
+	if off == 0 {
+		return 0, nil
+	}
+	return off - 1, nil
+}
+
+// Removes all segments whose highest offset is lower than lowest to save space
+func (l *Log) Truncate(lowest uint64) error {
+	l.mu.Lock()
+	l.mu.Unlock()
+	var segments []*segment
+	for _, s := range l.segments {
+		if s.nextOffset <= lowest + 1 {
+			if err := s.Remove(); err != nil {
+				return err
+			}
+			continue
+		}
+		segments = append(segments, s)
+	}
+	l.segments = segments
+	return nil
+}
+
+// Returns an io.Reader to read the whole log
+// We will need this capability when we implement coordinate consensus
+// and need to support snapshots and restoring a log
+func (l *Log) Reader() io.Reader {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	readers := make([]io.Reader, len(l.segments))
+	for i, segment := range l.segments {
+		readers[i] = &originReader{segment.store, 0}
+	}
+	return io.MultiReader(readers...)
+}
+
+// The segment stores are wrapped by the originReader type to satify io.Redaer interface
+// so we can pass it into the io.MultiReader() call, and to ensure that we begin reading
+// from the origin of the store and read its entire file
+type originReader struct {
+	store *store
+	off int64
+}
+
+func (o *originReader) Read(p []byte) (int, error) {
+	n, err := o.store.ReadAt(p, o.off)
+	o.off += int64(n)
+	return n, err
+}
+
+// Creates a new segment, appends that segment to the log's slice of segments,
+// and makes the new segment the active segment
+func (l *Log) newSegment(off uint64) error {
+	s, err := newSegment(l.Dir, off, l.Config)
+	if err != nil {
+		return err
+	}
+
+	l.segments = append(l.segments, s)
+	l.activeSegment = s
+	return nil
 }
