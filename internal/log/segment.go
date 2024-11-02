@@ -128,7 +128,7 @@ func (s *segment) Remove() error {
 	if err := s.Close(); err != nil {
 		return err
 	}
-	if err := os.Remove(s.index.Name()); err != nil {
+	if err := os.Remove(s.store.Name()); err != nil {
 		return err
 	}
 	if err := os.Remove(s.index.Name()); err != nil {

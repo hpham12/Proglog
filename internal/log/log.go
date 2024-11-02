@@ -161,7 +161,7 @@ func (l *Log) lowestOffset() (uint64, error) {
 	return l.segments[0].baseOffset, nil
 }
 
-func (l *Log) HighestOffset() (uint64, error) {
+func (l *Log) highestOffset() (uint64, error) {
 	l.mu.RLock()
 	defer l.mu.RLock()
 	off := l.segments[len(l.segments) - 1].nextOffset
@@ -174,7 +174,7 @@ func (l *Log) HighestOffset() (uint64, error) {
 // Removes all segments whose highest offset is lower than lowest to save space
 func (l *Log) Truncate(lowest uint64) error {
 	l.mu.Lock()
-	l.mu.Unlock()
+	defer l.mu.Unlock()
 	var segments []*segment
 	for _, s := range l.segments {
 		if s.nextOffset <= lowest + 1 {

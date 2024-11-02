@@ -2,10 +2,8 @@ package log
 
 // An index entry contains 2 fields: The record's offset and its position in the store file
 import (
-	"fmt"
 	"io"
 	"os"
-
 	"github.com/tysonmote/gommap"
 )
 
@@ -79,7 +77,6 @@ func (i *index) Read(in int64) (off uint32, pos uint64, err error) {
 
 // Method to append the given offset and position to the index
 func (i *index) Write(off uint32, pos uint64) error {
-	fmt.Printf("current index size %d", i.size)
 	if uint64(len(i.mmap)) < i.size + entWidth {
 		return io.EOF;
 	}
