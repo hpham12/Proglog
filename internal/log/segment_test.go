@@ -15,16 +15,13 @@ var (
 
 func TestSegment(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "segment-test")
+	defer os.RemoveAll(dir)
 	c := Config{}
 
 	c.Segment.MaxIndexBytes = entWidth * 2
 	c.Segment.MaxStoreBytes = 1024
 
 	segment, err := newSegment(dir, 0, c)
-	defer func() {
-		segment.Close()
-		segment.Remove()
-	}()
 
 	require.NoError(t, err)
 
