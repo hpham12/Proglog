@@ -15,19 +15,23 @@ var (
 
 func TestSegment(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "segment-test")
-	defer os.RemoveAll(dir)
 	c := Config{}
 
 	c.Segment.MaxIndexBytes = entWidth * 2
 	c.Segment.MaxStoreBytes = 1024
 
 	segment, err := newSegment(dir, 0, c)
+	defer func() {
+		segment.Close()
+		segment.Remove()
+	}()
 
 	require.NoError(t, err)
 
 	testSegmentAppend(t, segment)
 	testSegmentRead(t, segment)
-	testSegmentClose(t, segment)
+	testSegmentClose(t, dir, c)
+	testSegmentRemove(t, dir, c)
 }
 
 func testSegmentAppend(t *testing.T, s *segment) {
@@ -58,7 +62,14 @@ func testSegmentRead(t *testing.T, s *segment) {
 	require.Equal(t, io.EOF, err)
 }
 
-func testSegmentClose(t *testing.T, s *segment) {
+func testSegmentRemove(t *testing.T, dir string, c Config) {
+	s, _ := newSegment(dir, 0, c)
+	err := s.Remove()
+	require.NoError(t, err)
+}
+
+func testSegmentClose(t *testing.T, dir string, c Config) {
+	s, _ := newSegment(dir, 0, c)
 	err := s.Close()
 	require.NoError(t, err)
 }
