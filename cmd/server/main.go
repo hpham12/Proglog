@@ -1,13 +1,12 @@
 package main
 
 import (
-	"Proglog/internal/server"
-	"fmt"
-	"log"
+	// "Proglog/internal/server"
+	// "fmt"
+	// "log"
 )
 
 func main() {
-	server := server.NewHTTPServer(":8080")
-	log.Fatal(server.ListenAndServe())
-	fmt.Print("Hello")
+	// server := server.NewGRPCServer()
+	// log.Fatal(server.ListenAndServe())
 }
