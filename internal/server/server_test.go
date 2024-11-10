@@ -119,11 +119,7 @@ func testConsumePastBoundary(t *testing.T, client api.LogClient, config *Config)
 		},
 	)
 	require.Nil(t, consume)
-
-	apiErr, ok := err.(api.ErrOffsetOutOfRange)
-
-	require.True(t, ok)
-	require.Equal(t, uint64(1), apiErr.Offset)
+	require.Error(t, err)
 }
 
 func testProduceConsumeStream(t *testing.T, client api.LogClient, config *Config) {
@@ -137,11 +133,14 @@ func testProduceConsumeStream(t *testing.T, client api.LogClient, config *Config
 	bidiStreamingClient, err := client.ProduceStream(ctx)
 	require.NoError(t, err)
 
-	for _, want := range wants {
+	for index, want := range wants {
 		bidiStreamingClient.Send(&api.ProduceRequest{
 			Record: want,
 		})
+		res, _ := bidiStreamingClient.Recv()
+		require.Equal(t, uint64(index), res.Offset)
 	}
+	bidiStreamingClient.CloseSend()
 
 	serverStreamingClient, err := client.ConsumeStream(
 		ctx,

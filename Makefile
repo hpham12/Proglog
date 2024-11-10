@@ -7,4 +7,4 @@ compile:
 	--proto_path=.
 
 test:
-	go test -race ./internal/log
+	go test -race ./internal/log ./internal/server
