@@ -1,0 +1,16 @@
+{
+	"CN": "My CA",
+	"key": {
+		"algo": "rsa",
+		"size": 2048
+	},
+	"names": [
+		{
+			"C":  "US",
+            "L":  "Boston",
+            "O":  "Personal",
+            "OU": "CA Services",
+            "ST": "Massachussets"
+		}
+	]
+}
