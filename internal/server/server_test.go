@@ -35,7 +35,7 @@ func TestServer(t *testing.T) {
 func setupTest(t *testing.T, fn func(*Config))(client api.LogClient, cfg *Config, teardown func()) {
 	t.Helper()
 
-	// crete a listener on the local network address that our server will run on,
+	// create a listener on the local network address that our server will run on,
 	// using a random free port
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
