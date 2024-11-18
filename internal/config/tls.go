@@ -35,7 +35,14 @@ func SetupTLSConfig(cfg TLSConfig) (*tls.Config, error) {
 				cfg.CAFile,
 			)
 		}
+
 		if cfg.Server {
+			// this is to enable mutual TLS (mTLS). If only the RootCAs is set,
+			// only the client will verify the server's certificate and not the
+			// other way around.
+
+			// ClientCAs basically has the same role as RootCAs, but is used for
+			// server authenticating client connection.
 			tlsConfig.ClientCAs = ca
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		} else {
