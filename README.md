@@ -11,10 +11,20 @@
 		2. ca.csr - (Certificate Signing Request) This is the certificate signing request that was used to generate the ca.pem
 		3. ca-key.pem - This is the CA's private certificate. It is used to sign issued certificates and used to create the public certificates ()
 
-		4. How These Files Are Used Together:
+	4. How These Files Are Used Together:
 			1. Creating Your CA: ca-key.pem (private key) signs the ca.csr to create the ca.pem (public certificate).
+
 			2. Issuing Certificates: The CA uses ca.pem (public certificate) and ca-key.pem (private key) to sign and issue certificates for clients, servers, or devices.
+
 			3. Client/Server Trust: Distribute ca.pem to systems that need to trust certificates issued by your CA.
+			4. The client has a copy of the CA’s public certificate (ca.pem) and uses it to:
+				1. Verify the signature on the server's certificate.
+				2. Ensure the server certificate was indeed issued by the trusted CA.
+			
+			5. The verification involves cryptographic checks:
+				1. The client uses the CA's public key (from ca.pem) to decrypt the signature on the server's certificate.
+				2. If the decrypted data matches the server certificate's contents (hash), the certificate is considered valid.
+
 	- When we generate TLS certificates, a few things happen:
 		1. Generated a new private key (server-key.pem).
 		2. The tool creates the CSR (server.csr) using: The public key, Metadata (e.g., hostname, organization), and A digital signature generated using the private key.
