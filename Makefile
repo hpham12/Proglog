@@ -1,4 +1,4 @@
-CONFIG_PATH=${HOME}/.Proglog/
+CONFIG_PATH=${HOME}/.Proglog
 .PHONY: init
 init:
 	mkdir -p ${CONFIG_PATH}
@@ -41,3 +41,9 @@ test:
 	cp test/model.conf $(CONFIG_PATH)/model.conf
 	cp test/policy.csv $(CONFIG_PATH)/policy.csv
 	go test -race ./...
+
+.PHONY: observable-test
+observable-test:
+	cp test/model.conf $(CONFIG_PATH)/model.conf
+	cp test/policy.csv $(CONFIG_PATH)/policy.csv
+	cd ./internal/server && go test -v -debug=true
