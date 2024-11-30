@@ -68,7 +68,7 @@ func createNewClient(clientCertFile string, clientKeyFile string, caFile string,
 		return nil, nil, err
 	}
 
-	clientCreds := credentials.NewTLS(clientTLSConfig)
+	clientCreds := credentials .NewTLS(clientTLSConfig)
 	cc, err := grpc.NewClient(
 		l.Addr().String(),
 		grpc.WithTransportCredentials(clientCreds),
@@ -175,6 +175,7 @@ func testProduceConsume(t *testing.T, rootClient api.LogClient, _ api.LogClient,
 			Record: want,
 		},
 	)
+	
 	require.NoError(t, err)
 	consume, err := rootClient.Consume(
 		ctx,
