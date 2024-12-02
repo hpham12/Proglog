@@ -135,6 +135,22 @@ func (r *Replicator) init() {
 	}
 }
 
+// Close the replicator so it does not replciate new servers that join
+// the cluster and it stops replicating exisiting servers by causing the
+// `replicate()` goroutine to return
+func (r *Replicator) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.init()
+	if r.closed {
+		return nil
+	}
+	close(r.close)
+	r.closed = true
+	return nil
+}
+
 func (r * Replicator) logError(err error, errMsg string, addr string) {
 	r.Logger.Error(
 		errMsg,
