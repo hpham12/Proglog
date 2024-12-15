@@ -50,18 +50,18 @@ func (r *Replicator) replicate(addr string, leave chan struct{}) {
 	logClient := api.NewLogClient(cc)
 	ctx := context.Background()
 
-	bidiStreamingClient, err := logClient.ProduceStream(ctx)
-	if err != nil {
-		r.logError(err, "Failed to create bidirectional streaming client", addr)
-		return
-	}
-
-	localStreamingClient, err := r.LocalServer.ConsumeStream(
+	remoteStreamingClient, err := logClient.ConsumeStream(
 		ctx,
 		&api.ConsumeRequest{
 			Offset: 0,
 		},
 	)
+	if err != nil {
+		r.logError(err, "Failed to create bidirectional streaming client", addr)
+		return
+	}
+
+	localStreamingClient, err := r.LocalServer.ProduceStream(ctx)
 	if err != nil {
 		r.logError(err, "Failed to create local streaming client", "")
 		return
@@ -70,10 +70,10 @@ func (r *Replicator) replicate(addr string, leave chan struct{}) {
 	recordsToReplicate := make(chan *api.Record)
 
 	for {
-		response, err := localStreamingClient.Recv()
+		response, err := remoteStreamingClient.Recv()
 		if err != nil {
 			if err != io.EOF {
-				r.logError(err, "Unexpected error happened when reading records from local server", "")
+				r.logError(err, "Unexpected error happened when reading records from remote server", "")
 				return
 			}
 			break
@@ -87,9 +87,9 @@ func (r *Replicator) replicate(addr string, leave chan struct{}) {
 			case <- r.close:
 				return
 			case <- leave:
-				return
+				return                        
 			case record := <- recordsToReplicate:
-				err = bidiStreamingClient.Send(
+				err = localStreamingClient.Send(
 					&api.ProduceRequest{
 						Record: record,
 					},
