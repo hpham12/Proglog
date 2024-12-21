@@ -18,11 +18,11 @@ import (
 type Config struct {
 	ServerTLSConfig 		*tls.Config
 	PeerTLSConfig 			*tls.Config
-	DataDir 				string
-	BindAddr 				string
-	RPCPort 				int
-	NodeName 				string
-	StartJoinAddrs			[]string
+	DataDir 				string		// existing commit log data
+	BindAddr 				string		// This address also contains the port that Serf uses for gossiping
+	RPCPort 				int			// port used for RPC
+	NodeName 				string		// node name for service discovery
+	StartJoinAddrs			[]string	// Addresses to start with when trying to join a cluster
 	ACLModelFile 			string
 	ACLPolicyFile			string
 }
@@ -154,6 +154,7 @@ func (a *Agent) setupMembership() error {
 	a.replicator = &log.Replicator {
 		DialOptions: opts,
 		LocalServer: client,
+		Logger: zap.L().Named("replicator"),
 	}
 	a.membership, err = discovery.New(
 		a.replicator,

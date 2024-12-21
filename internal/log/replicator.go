@@ -46,6 +46,7 @@ func (r *Replicator) replicate(addr string, leave chan struct{}) {
 		r.logError(err, "Failed to dial", addr)
 		return
 	}
+	defer cc.Close()
 
 	logClient := api.NewLogClient(cc)
 	ctx := context.Background()
@@ -61,48 +62,44 @@ func (r *Replicator) replicate(addr string, leave chan struct{}) {
 		return
 	}
 
-	localStreamingClient, err := r.LocalServer.ProduceStream(ctx)
-	if err != nil {
-		r.logError(err, "Failed to create local streaming client", "")
-		return
-	}
-
 	recordsToReplicate := make(chan *api.Record)
 
-	for {
+	go func () {
+		for {
 		response, err := remoteStreamingClient.Recv()
 		if err != nil {
 			if err != io.EOF {
 				r.logError(err, "Unexpected error happened when reading records from remote server", "")
 				return
 			}
-			break
+			return
 		}
 		recordsToReplicate <- response.Record
-	}
+	}}()
 
-	go func() {
-		for {
-			select {
-			case <- r.close:
-				return
-			case <- leave:
-				return                        
-			case record := <- recordsToReplicate:
-				err = localStreamingClient.Send(
-					&api.ProduceRequest{
-						Record: record,
-					},
-				)
-				if err != nil {
-					if err != io.EOF {
-						r.logError(err, "Unexpected error happened when produce request to remote server", addr)
-					}
-					return 
+	for {
+		select {
+		case <- r.close:
+			return
+		case <- leave:
+			return                
+		case record := <- recordsToReplicate:
+			_, err = r.LocalServer.Produce(
+				ctx,
+				&api.ProduceRequest{
+					Record: record,
+				},
+			)
+			if err != nil {
+				if err != io.EOF {
+					r.logError(err, "Unexpected error happened when produce request to remote server", addr)
 				}
+				return 
 			}
 		}
-	}()
+	}
+
+	
 }
 
 // This method handles the server leaving the cluster by removing the server from
@@ -111,7 +108,6 @@ func (r *Replicator) Leave(name string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.init()
 	if _, ok := r.servers[name]; !ok {
 		return nil
 	}
@@ -122,18 +118,18 @@ func (r *Replicator) Leave(name string) error {
 	return nil
 }
 
-// lazily initialize the replicator
-func (r *Replicator) init() {
-	if (r.Logger == nil) {
-		r.Logger = zap.L().Named("replicator")
-	}
-	if (r.servers == nil) {
-		r.servers = make(map[string]chan struct{})
-	}
-	if (r.close == nil) {
-		r.close = make(chan struct{})
-	}
-}
+// // lazily initialize the replicator
+// func (r *Replicator) init() {
+// 	if (r.Logger == nil) {
+// 		r.Logger = zap.L().Named("replicator")
+// 	}
+// 	if (r.servers == nil) {
+// 		r.servers = make(map[string]chan struct{})
+// 	}
+// 	if (r.close == nil) {
+// 		r.close = make(chan struct{})
+// 	}
+// }
 
 // Close the replicator so it does not replciate new servers that join
 // the cluster and it stops replicating exisiting servers by causing the
@@ -142,11 +138,12 @@ func (r *Replicator) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.init()
 	if r.closed {
 		return nil
 	}
-	close(r.close)
+	if (r.close != nil) {
+		close(r.close)
+	}
 	r.closed = true
 	return nil
 }
