@@ -154,13 +154,13 @@ func (l *Log) Reset() error {
 // this information to know what nodes have the oldest and newest data and what
 // nodes are falling behind and need to replicate
 
-func (l *Log) lowestOffset() (uint64, error) {
+func (l *Log) LowestOffset() (uint64, error) {
 	l.mu.RLock()
 	defer l.mu.RLock()
 	return l.segments[0].baseOffset, nil
 }
 
-func (l *Log) highestOffset() (uint64, error) {
+func (l *Log) HighestOffset() (uint64, error) {
 	l.mu.RLock()
 	defer l.mu.RLock()
 	off := l.segments[len(l.segments) - 1].nextOffset
@@ -188,7 +188,7 @@ func (l *Log) Truncate(lowest uint64) error {
 	return nil
 }
 
-// Returns an io.Reader to read the whole log
+// Returns an io.Reader to read the whole log.
 // We will need this capability when we implement coordinate consensus
 // and need to support snapshots and restoring a log
 func (l *Log) Reader() io.Reader {
