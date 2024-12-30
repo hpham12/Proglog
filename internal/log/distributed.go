@@ -142,6 +142,10 @@ func (l *DistributedLog) setupRaft(dataDir string) error {
 		return err
 	}
 
+	// bootstrap a server configured with itself as the only voter,
+	// wait until it becomes the leader, then tell the leader to add
+	// more servers to the cluster. The sunsequently added servers
+	// don't bootstrap
 	if l.config.Raft.Bootstrap && !hasState {
 		config := raft.Configuration {
 			Servers: []raft.Server{{
