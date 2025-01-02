@@ -153,10 +153,10 @@ func (l *DistributedLog) setupRaft(dataDir string) error {
 				Address:	transport.LocalAddr(),
 			}},
 		}
-		err = l.raft.BootstrapCluster(config).Error()
+		l.raft.BootstrapCluster(config).Error()
 	}
 
-	return err
+	return nil
 }
 
 // Appends the record to the log. Instead of directly append the record to the server's log,

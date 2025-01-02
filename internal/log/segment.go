@@ -149,8 +149,8 @@ func (s *segment) Close() error {
 
 // returns the nearest and lesser multiple of k in j
 // for example nearestMultiple(9, 4) = 8
-func nearestMultiple(j, k uint64) uint64 {
-	if j >= 0 {
+func NearestMultiple(j, k uint64) uint64 {
+	if j > 0 {
 		return (j / k) * k
 	}
 
