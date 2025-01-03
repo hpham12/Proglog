@@ -27,6 +27,11 @@ type Authorizer interface {
 type Config struct {
 	CommitLog CommitLog
 	Authorizer Authorizer
+	GetServerer GetServerer
+}
+
+type GetServerer interface {
+	GetServers() ([]*api.Server, error)
 }
 
 const (
@@ -136,6 +141,20 @@ func (s *grpcServer) ConsumeStream (
 			req.Offset++
 		}
 	}
+}
+
+// fetch all servers
+func (s *grpcServer) GetServers(ctx context.Context, req *api.GetServersRequest) (
+	*api.GetServersResponse, error,
+) {
+	servers, err := s.GetServerer.GetServers()
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.GetServersResponse{
+		Servers: servers,
+	}, nil
 }
 
 // This interface allows us to pass in different log implementations

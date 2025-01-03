@@ -1,18 +1,23 @@
 package agent
 
 import (
-	"crypto/tls"
-	"fmt"
-	"net"
-	"sync"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	api "Proglog/api/v1"
 	"Proglog/internal/auth"
 	"Proglog/internal/discovery"
 	"Proglog/internal/log"
 	"Proglog/internal/server"
+	"bytes"
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net"
+	"sync"
+	"time"
+
+	"github.com/hashicorp/raft"
+	"github.com/soheilhy/cmux"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type Config struct {
@@ -25,16 +30,17 @@ type Config struct {
 	StartJoinAddrs			[]string	// Addresses to start with when trying to join a cluster
 	ACLModelFile 			string
 	ACLPolicyFile			string
+	BootstrapRaft			bool
 }
 
 // Agent sets up the components so its Config comprises the component parameters
 // to pass them through to the components
 type Agent struct {
 	Config
-	log					*log.Log
+	multiplexer			cmux.CMux
+	log					*log.DistributedLog
 	server				*grpc.Server
 	membership 			*discovery.Membership
-	replicator 	 		*log.Replicator
 	alreadyShutdown		bool
 	shutdowns 			chan struct{}
 	shutdownLock 		sync.Mutex
@@ -58,6 +64,7 @@ func New(config Config) (*Agent, error) {
 	}
 	setup := []func() error {
 		a.setupLogger,
+		a.setupMultiplexer,
 		a.setupLog,
 		a.setupServer,
 		a.setupMembership,
@@ -69,7 +76,18 @@ func New(config Config) (*Agent, error) {
 		}
 	}
 
+	go a.serve()
+
 	return a, nil
+}
+
+// Tell mux to server connections
+func (a *Agent) serve() error {
+	if err := a.multiplexer.Serve(); err != nil {
+		a.Shutdown()
+		return err
+	}
+	return nil
 }
 
 func (a *Agent) setupLogger() error {
@@ -81,13 +99,51 @@ func (a *Agent) setupLogger() error {
 	return nil
 }
 
+// Configure dsitributed log's Raft to use our multiplexed listener
+// and then configure and create the distributed log
 func (a *Agent) setupLog() error {
-	var err error
-	a.log, err = log.NewLog(
-		a.Config.DataDir,
-		log.Config{},
+	raftListener := a.multiplexer.Match(func(reader io.Reader) bool {
+		b := make([]byte, 1)
+		if _, err := reader.Read(b); err != nil {
+			return false
+		}
+		return bytes.Compare(b, []byte{byte(log.RaftRPC)}) == 0
+	})
+
+	logConfig := log.Config{}
+	logConfig.Raft.StreamLayer = log.NewStreamLayer(
+		raftListener,
+		a.Config.ServerTLSConfig,
+		a.Config.PeerTLSConfig,
 	)
+	logConfig.Raft.LocalID = raft.ServerID(a.Config.NodeName)
+	logConfig.Raft.Bootstrap = a.BootstrapRaft
+	var err error
+	a.log, err = log.NewDistributedLog(
+		a.Config.DataDir,
+		logConfig,
+	)
+	if err != nil {
+		return err
+	}
+	if a.Config.BootstrapRaft {
+		err = a.log.WaitForLeader(3 * time.Second)
+	}
+
 	return err
+}
+
+func (a *Agent) setupMultiplexer() error {
+	rpcAddr := fmt.Sprintf(
+		":%d",
+		a.Config.RPCPort,
+	)
+	listener, err := net.Listen("tcp", rpcAddr)
+	if err != nil {
+		return err
+	}
+	a.multiplexer = cmux.New(listener)
+	return nil
 }
 
 func (a *Agent) setupServer() error {
@@ -99,6 +155,7 @@ func (a *Agent) setupServer() error {
 	serverConfig := &server.Config {
 		CommitLog: 	a.log,
 		Authorizer: authorizer,
+		GetServerer: a.log,
 	}
 
 	var opts []grpc.ServerOption
@@ -111,17 +168,10 @@ func (a *Agent) setupServer() error {
 	if err != nil {
 		return err
 	}
-	rpcAddr, err := a.RPCAddr()
-	if err != nil {
-		return err
-	}
 
-	ln, err := net.Listen("tcp", rpcAddr)
-	if err != nil {
-		return err
-	}
+	grpcListener := a.multiplexer.Match(cmux.Any())
 	go func() {
-		if err := a.server.Serve(ln); err != nil {
+		if err := a.server.Serve(grpcListener); err != nil {
 			a.Shutdown()
 		}
 	}()
@@ -129,35 +179,15 @@ func (a *Agent) setupServer() error {
 	return err
 }
 
-// Sets up a Replicator with gRPC dial options needed to connect to other 
-// servers and a client so that the replicator can connect to other servers,
-// consume their data, and produce a copy of the data to the local server
-//
-// Then, we create a Membership using the replicator and its handler to notify
-// the replicator when servers join and leave the cluster
+// Create Membership
 func (a *Agent) setupMembership() error {
 	rpcAddr, err := a.Config.RPCAddr()
 	if err != nil {
 		return err
 	}
-	var opts []grpc.DialOption
-	if a.Config.PeerTLSConfig != nil {
-		opts = append(opts, grpc.WithTransportCredentials(
-			credentials.NewTLS(a.Config.PeerTLSConfig),
-		))
-	}
-	conn, err := grpc.NewClient(rpcAddr, opts...)
-	if err != nil {
-		return err
-	}
-	client := api.NewLogClient(conn)
-	a.replicator = &log.Replicator {
-		DialOptions: opts,
-		LocalServer: client,
-		Logger: zap.L().Named("replicator"),
-	}
+
 	a.membership, err = discovery.New(
-		a.replicator,
+		a.log,
 		discovery.Config{
 			NodeName: a.Config.NodeName,
 			BindAddr: a.Config.BindAddr,
@@ -192,7 +222,6 @@ func (a *Agent) Shutdown() error {
 
 	shutdown := []func() error {
 		a.membership.Leave,
-		a.replicator.Close,
 		func() error {
 			a.server.GracefulStop()
 			return nil
