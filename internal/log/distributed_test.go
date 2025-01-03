@@ -59,6 +59,14 @@ func TestMultipleNodes(t *testing.T) {
 		logs = append(logs, l)
 	}
 
+	// check if the number of servers are correct
+	servers, err := logs[0].GetServers()
+	require.NoError(t, err)
+	require.Equal(t, 3, len(servers))
+	require.True(t, servers[0].IsLeader)
+	require.False(t, servers[1].IsLeader)
+	require.False(t, servers[2].IsLeader)
+
 	records := []*api.Record{
 		{Value: []byte("first")},
 		{Value: []byte("second")},
@@ -91,10 +99,18 @@ func TestMultipleNodes(t *testing.T) {
 
 	// Verify that the leader stops replicating to a server that has left the cluster,
 	// while continue to replicate to the exisiting servers
-	err := logs[0].Leave("1")
+	err = logs[0].Leave("1")
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
+
+	// check if the number of servers are correct
+	servers, err = logs[0].GetServers()
+	require.NoError(t, err)
+	require.Equal(t, 2, len(servers))
+	require.True(t, servers[0].IsLeader)
+	require.False(t, servers[1].IsLeader)
+
 	off, err := logs[0].Append(&api.Record{
 		Value: []byte("third"),
 	})

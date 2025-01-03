@@ -103,8 +103,8 @@ func (l *Log) Append(record *api.Record) (uint64, error) {
 
 // Reads the record stored at the given offset
 func (l *Log) Read(off uint64) (*api.Record, error) {
-	// l.mu.RLock()
-	// defer l.mu.RUnlock()
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 
 	// Find the segment that contains the given record
 	var s *segment
@@ -123,8 +123,8 @@ func (l *Log) Read(off uint64) (*api.Record, error) {
 
 // Close the log by iterating over the segments and close them
 func (l *Log) Close() error {
-	// l.mu.Lock()
-	// defer l.mu.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	for _, segment := range l.segments {
 		if err := segment.Close(); err != nil {
 			return err

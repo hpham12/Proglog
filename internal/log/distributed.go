@@ -516,3 +516,21 @@ func (l *DistributedLog) Close() error {
 	}
 	return l.log.Close()
 }
+
+func (l *DistributedLog) GetServers() ([]*api.Server, error) {
+	future := l.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		return nil, err
+	}
+
+	var servers []*api.Server
+	for _, raftServer := range future.Configuration().Servers {
+		servers = append(servers, &api.Server{
+			Id: string(raftServer.ID),
+			RpcAddr: string(raftServer.Address),
+			IsLeader: raftServer.Address == l.raft.Leader(),
+		})
+	}
+
+	return servers, nil
+}
