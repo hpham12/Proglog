@@ -398,7 +398,7 @@ func NewStreamLayer(
 
 const RaftRPC = 1
 
-// Makes outgoing connections to other servers in the Rat cluster.
+// Makes outgoing connections to other servers in the Raft cluster.
 // When we connect to a server, we write the RaftRPC byte to identify
 // the connection type so we can multiplex Raft on the same port as our
 // Log gRPC requests

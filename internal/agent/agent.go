@@ -99,7 +99,7 @@ func (a *Agent) setupLogger() error {
 	return nil
 }
 
-// Configure dsitributed log's Raft to use our multiplexed listener
+// Configure distributed log's Raft to use our multiplexed listener
 // and then configure and create the distributed log
 func (a *Agent) setupLog() error {
 	raftListener := a.multiplexer.Match(func(reader io.Reader) bool {
@@ -107,7 +107,7 @@ func (a *Agent) setupLog() error {
 		if _, err := reader.Read(b); err != nil {
 			return false
 		}
-		return bytes.Compare(b, []byte{byte(log.RaftRPC)}) == 0
+		return bytes.Equal(b, []byte{byte(log.RaftRPC)})
 	})
 
 	logConfig := log.Config{}
