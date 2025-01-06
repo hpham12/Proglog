@@ -3,6 +3,7 @@ package agent
 import (
 	api "Proglog/api/v1"
 	"Proglog/internal/config"
+	"Proglog/internal/loadbalance"
 	"context"
 	"fmt"
 	"os"
@@ -87,8 +88,6 @@ func TestAgent(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(3 * time.Second)
-
 	leaderClient := client(t, agents[0])
 	produceResponse, err := leaderClient.Produce(
 		context.Background(),
@@ -100,6 +99,9 @@ func TestAgent(t *testing.T) {
 	)
 
 	require.NoError(t, err)
+
+	// wait until replication has finished
+	time.Sleep(3 * time.Second)
 
 	consumeResponse, err := leaderClient.Consume(
 		context.Background(),
@@ -130,7 +132,15 @@ func client(t *testing.T, a *Agent) api.LogClient {
 	}
 	rpcAddr, err := a.Config.RPCAddr()
 	require.NoError(t, err)
-	conn, err := grpc.NewClient(rpcAddr, opts...)
+
+	conn, err := grpc.NewClient(fmt.Sprintf(
+			"%s:///%s",
+			loadbalance.Name,
+			rpcAddr,
+		),
+		opts...
+	)
+
 	require.NoError(t, err)
 	return api.NewLogClient(conn)
 }
