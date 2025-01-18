@@ -17,6 +17,8 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Authorizer interface {
@@ -61,13 +63,13 @@ func (s *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (
 	*api.ProduceResponse, error,
 ) {
 	// Performe authorization
-	if err := s.Authorizer.Authorize(
-		subject(ctx),
-		objectWildcard,
-		produceAction,
-	); err != nil {
-		return nil, err
-	}
+	// if err := s.Authorizer.Authorize(
+	// 	subject(ctx),
+	// 	objectWildcard,
+	// 	produceAction,
+	// ); err != nil {
+	// 	return nil, err
+	// }
 
 	offset, err := s.CommitLog.Append(req.Record)
 	if err != nil {
@@ -80,14 +82,14 @@ func (s *grpcServer) Produce(ctx context.Context, req *api.ProduceRequest) (
 func (s *grpcServer) Consume(ctx context.Context, req *api.ConsumeRequest) (
 	*api.ConsumeResponse, error,
 ) {
-	// Performe authorization
-	if err := s.Authorizer.Authorize(
-		subject(ctx),
-		objectWildcard,
-		consumeAction,
-	); err != nil {
-		return nil, err
-	}
+	// // Performe authorization
+	// if err := s.Authorizer.Authorize(
+	// 	subject(ctx),
+	// 	objectWildcard,
+	// 	consumeAction,
+	// ); err != nil {
+	// 	return nil, err
+	// }
 
 	record, err := s.CommitLog.Read(req.Offset)
 	if err != nil {
@@ -200,6 +202,12 @@ func NewGRPCServer(config *Config, opts ...grpc.ServerOption) (
 		grpc.StatsHandler(&ocgrpc.ServerHandler{}),
 	)
 	gsrv := grpc.NewServer(opts...)
+
+	// create a service that supports the health check protocol
+	hsrv := health.NewServer()
+	hsrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	healthpb.RegisterHealthServer(gsrv, hsrv)
+	
 	srv, err := newGRPCServer(config)
 	if err != nil {
 		return nil, err

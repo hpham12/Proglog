@@ -77,8 +77,8 @@ func (i *index) Read(in int64) (off uint32, pos uint64, err error) {
 
 // Method to append the given offset and position to the index
 func (i *index) Write(off uint32, pos uint64) error {
-	if uint64(len(i.mmap)) < i.size + entWidth {
-		return io.EOF;
+	if i.IsMaxed() {
+		return io.EOF
 	}
 	encodingStyle.PutUint32(i.mmap[i.size : i.size+offWidth], off)
 	encodingStyle.PutUint64(i.mmap[i.size+offWidth : i.size+entWidth], pos)
@@ -89,4 +89,8 @@ func (i *index) Write(off uint32, pos uint64) error {
 // Method to return the index's file path
 func (i *index) Name() string {
 	return i.file.Name()
+}
+
+func (i *index) IsMaxed() bool {
+	return uint64(len(i.mmap)) < i.size+entWidth
 }

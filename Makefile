@@ -47,3 +47,7 @@ observable-test:
 	cp test/model.conf $(CONFIG_PATH)/model.conf
 	cp test/policy.csv $(CONFIG_PATH)/policy.csv
 	cd ./internal/server && go test -v -debug=true
+
+TAG ?= 0.0.1
+build-docker:
+	docker build -t github.com/hpham12/proglog:$(TAG) .

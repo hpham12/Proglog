@@ -1,0 +1,34 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Launch File with Args 1",
+			"type": "go",
+			"request": "launch",
+			"program": "cmd/Proglog/main.go",
+			"args": [
+				"--bootstrap-raft", "true",
+				"--acl-model-file", "/Users/hpham/Desktop/DistributedSystem/Proglog/test/model.conf",
+				"--acl-policy-file", "/Users/hpham/Desktop/DistributedSystem/Proglog/test/policy.csv",
+			],
+			"console": "integratedTerminal",
+		},
+
+		{
+			"name": "Launch File with Args 2",
+			"type": "go",
+			"request": "launch",
+			"program": "cmd/Proglog/main.go",
+			"args": [
+				"--bootstrap-raft", "false",
+				"--acl-model-file", "/Users/hpham/Desktop/DistributedSystem/Proglog/test/model.conf",
+				"--acl-policy-file", "/Users/hpham/Desktop/DistributedSystem/Proglog/test/policy.csv",
+				"--"
+			],
+			"console": "integratedTerminal",
+		}
+	]
+}

@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Raft struct {
 		raft.Config
+		BindAddr	string
 		StreamLayer raft.StreamLayer
 		Bootstrap 	bool
 	}

@@ -100,7 +100,7 @@ func (s *segment) Append(record *api.Record) (offset uint64, err error) {
 	return cur, nil
 }
 
-// Returns the orecord for the given offset
+// Returns the record for the given offset
 func (s *segment) Read(off uint64) (*api.Record, error) {
 	// Look up the position of the record in store file
 	_, pos, err := s.index.Read(int64(off - s.baseOffset))
@@ -120,7 +120,8 @@ func (s *segment) Read(off uint64) (*api.Record, error) {
 // much to the store or the index
 func (s *segment) IsMaxed() bool {
 	return s.store.size >= s.config.Segment.MaxStoreBytes ||
-	s.index.size >= s.config.Segment.MaxIndexBytes
+	s.index.size >= s.config.Segment.MaxIndexBytes ||
+	s.index.IsMaxed()
 }
 
 // Closes the segment and removes the index and store files
