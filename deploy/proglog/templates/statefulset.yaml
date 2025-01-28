@@ -57,6 +57,10 @@ spec:
           grpc:
             port: {{.Values.rpcPort}}
           initialDelaySeconds: 10
+      volumes:
+      - name: custom-hosts
+        configMap:
+          name: custom-hosts
   volumeClaimTemplates:
   - metadata:
       name: datadir

@@ -25,7 +25,6 @@ type cfg struct {
 }
 
 func main() {
-	fmt.Println("Starting...")
 	cli := &cli{}
 
 	cmd := &cobra.Command{
